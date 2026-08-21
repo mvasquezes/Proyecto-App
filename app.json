@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "ejemplo01",
-    "slug": "ejemplo01",
+    "name": "NativeWind",
+    "slug": "NativeWind",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "ejemplo01",
+    "scheme": "NativeWind",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
