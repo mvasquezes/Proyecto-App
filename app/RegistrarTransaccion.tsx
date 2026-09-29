@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as NavigationBar from 'expo-navigation-bar';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -30,28 +29,38 @@ export default function NuevaTransaccionScreen() {
   const [modalVisible, setModalVisible] = useState(false);
 
   useEffect(() => {
-    if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync('#0F172A');
-      NavigationBar.setButtonStyleAsync('light');
-    }
+if (tarjetas.length === 0) {
+   // En Web
+      if (Platform.OS === 'web') {
+        
+       
+        const quiereCrear = window.confirm(
+          'Sin tarjetas registradas.\n\nDebes registrar al menos una tarjeta antes de agregar una transacción.\n\n¿Deseas crear una tarjeta ahora?'
+        );
 
-    // Si no hay tarjetas, obligar a registrar una primero
-    if (tarjetas.length === 0) {
-      Alert.alert(
-        'Sin tarjetas',
-        'Debes registrar al menos una tarjeta antes de agregar una facturación o compra.',
-        [
-          {
-            text: 'Crear Tarjeta',
-            onPress: () => router.replace('/RegistrarTarjeta'),
-          },
-          {
-            text: 'Cancelar',
-            style: 'cancel',
-            onPress: () => router.replace('/'),
-          },
-        ]
-      );
+        if (quiereCrear) {
+          router.replace('/RegistrarTarjeta');
+        } else {
+          router.replace('/');
+        }
+      } else {
+        // En Móvil (Android / iOS)
+        Alert.alert(
+          'Sin tarjetas',
+          'Debes registrar al menos una tarjeta antes de agregar una facturación o compra.',
+          [
+            {
+              text: 'Crear Tarjeta',
+              onPress: () => router.replace('/RegistrarTarjeta'),
+            },
+            {
+              text: 'Cancelar',
+              style: 'cancel',
+              onPress: () => router.replace('/'),
+            },
+          ]
+        );
+      }
     }
   }, [tarjetas]);
 
@@ -81,9 +90,19 @@ export default function NuevaTransaccionScreen() {
       numCuotas
     );
 
-    Alert.alert('Éxito', 'Facturación agregada con éxito.', [
-      { text: 'OK', onPress: () => router.replace('/') },
-    ]);
+if (Platform.OS === 'web') {
+      // En Web alert() bloquea la pantalla hasta que des click en Aceptar
+      alert('Agregado correctamente');
+      router.replace('/');
+    } else {
+      // En móvil (Android / iOS) usamos el diálogo nativo
+      Alert.alert('Éxito', 'Agregado correctamente', [
+        {
+          text: 'OK',
+          onPress: () => router.replace('/'),
+        },
+      ]);
+    }
   };
 
   return (
@@ -100,7 +119,7 @@ export default function NuevaTransaccionScreen() {
           <TouchableOpacity onPress={() => router.replace('/')} className="w-8">
             <Ionicons name="chevron-back" size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text className="text-slate-600 text-base font-bold">
+          <Text className="text-slate-600 text-base font-inter-bold">
             Transacciones
           </Text>
           <View className="w-8" />
@@ -114,7 +133,7 @@ export default function NuevaTransaccionScreen() {
               onPress={() => setModalVisible(true)}
               className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl flex-row items-center justify-between"
             >
-              <Text className="text-slate-900 text-sm font-semibold">
+              <Text className="text-slate-900 text-sm font-inter-medium">
                 {tarjetaSeleccionada
                   ? `${tarjetaSeleccionada.banco} - ${tarjetaSeleccionada.nombre}`
                   : 'Selecciona una tarjeta'}
@@ -125,7 +144,7 @@ export default function NuevaTransaccionScreen() {
 
           {/* 2. Ingrese Motivo */}
           <View className="mb-5">
-            <Text className="text-black text-base font-bold mb-1.5">Ingrese motivo</Text>
+            <Text className="text-black text-base font-inter-bold mb-1.5">Ingrese motivo</Text>
             <TextInput
               value={motivo}
               onChangeText={setMotivo}
@@ -137,7 +156,7 @@ export default function NuevaTransaccionScreen() {
 
           {/* 3. Ingrese Monto */}
           <View className="mb-5">
-            <Text className="text-black text-base font-bold mb-1.5">Ingrese monto</Text>
+            <Text className="text-black text-base font-inter-bold mb-1.5">Ingrese monto</Text>
             <TextInput
               value={monto}
               onChangeText={(txt) => setMonto(txt.replace(/[^0-9]/g, ''))}
@@ -150,7 +169,7 @@ export default function NuevaTransaccionScreen() {
 
           {/* 4. Ingrese Cantidad Cuotas */}
           <View className="mb-8">
-            <Text className="text-black text-base font-bold mb-1.5">Ingrese cantidad cuotas</Text>
+            <Text className="text-black text-base font-inter-bold mb-1.5">Ingrese cantidad cuotas</Text>
             <TextInput
               value={cuotas}
               onChangeText={(txt) => setCuotas(txt.replace(/[^0-9]/g, ''))}
@@ -167,7 +186,7 @@ export default function NuevaTransaccionScreen() {
             className="w-full h-12 bg-emerald-500 rounded-2xl items-center justify-center mb-8 shadow-md"
             activeOpacity={0.8}
           >
-            <Text className="text-white text-base font-bold">
+            <Text className="text-white text-base font-inter-bold">
               Agregar Transacción
             </Text>
           </TouchableOpacity>
@@ -178,7 +197,7 @@ export default function NuevaTransaccionScreen() {
           <View className="flex-1 bg-black/50 justify-end">
             <View className="bg-slate-50 rounded-t-3xl max-h-[70%] p-6">
               <View className="flex-row items-center justify-between pb-4 border-b border-slate-200">
-                <Text className="text-slate-800 text-lg font-bold">Seleccionar Tarjeta</Text>
+                <Text className="text-slate-800 text-lg font-inter-bold">Seleccionar Tarjeta</Text>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
                   <Ionicons name="close" size={24} color="#0F172A" />
                 </TouchableOpacity>
@@ -200,7 +219,7 @@ export default function NuevaTransaccionScreen() {
                         style={{ backgroundColor: t.colorHex }}
                       />
                       <View>
-                        <Text className="text-slate-900 text-base font-semibold">
+                        <Text className="text-slate-900 text-base font-inter-medium">
                           {t.banco}
                         </Text>
                         <Text className="text-slate-500 text-xs">

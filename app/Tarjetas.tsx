@@ -5,7 +5,7 @@ import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomNavigation from '../components/MenuNavegacion';
-import CardItem from '../components/TarjetaGrande';
+import TarjetaMini from '../components/TarjetaMini';
 import { useApp } from '../context/AppContext';
 
 export default function TarjetasScreen() {
@@ -20,17 +20,19 @@ export default function TarjetasScreen() {
         <TouchableOpacity onPress={() => router.replace('/')} className="w-8">
           <Ionicons name="chevron-back" size={24} color="#1E293B" />
         </TouchableOpacity>
-        <Text className="text-slate-800 text-lg font-bold">
-          Tarjetas
-        </Text>
+        <Text className="text-slate-800 text-lg font-inter-bold">Tarjetas</Text>
         <View className="w-8" />
       </View>
 
       {/* Listado dinámico de tarjetas */}
       <ScrollView className="flex-1 px-6 pt-2" showsVerticalScrollIndicator={false}>
+        <Text className="text-slate-500 text-sm font-inter-bold tracking-wider mb-5">
+          TARJETAS DE CRÉDITO
+        </Text>
+
         {tarjetas.length === 0 ? (
           <View className="p-6 rounded-2xl border border-dashed border-slate-300 items-center justify-center mt-4">
-            <Text className="text-slate-400 text-sm font-medium">
+            <Text className="text-slate-400 text-sm font-inter-medium">
               No tienes tarjetas registradas. Pulsa "+" abajo para agregar una.
             </Text>
           </View>
@@ -41,7 +43,7 @@ export default function TarjetasScreen() {
               activeOpacity={0.88}
               onPress={() => router.push(`../detalle-tarjeta/${t.id}`)}
             >
-              <CardItem item={t} />
+              <TarjetaMini item={t} />
             </TouchableOpacity>
           ))
         )}

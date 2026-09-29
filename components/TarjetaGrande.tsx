@@ -13,20 +13,21 @@ export default function CardItem({ item }: { item: TarjetaItem }) {
 
       {/* Nombre del Banco */}
       <View className="flex-row justify-between items-start">
-        <Text className="text-white text-base font-semibold tracking-wide">
+        <Text className="text-white text-base font-inter-bold tracking-wide">
           {item.banco || "Nombre Banco"}
         </Text>
       </View>
 
+
       {/* Monto y Vencimiento */}
       <View className="gap-1">
-        <Text className="text-white/80 text-xs font-normal">
+        <Text className="text-white/80 text-xs font-inter-medium">
           Total a Pagar:
         </Text>
-        <Text className="text-white text-3xl font-bold tracking-tight">
+        <Text className="text-white text-3xl font-inter-medium tracking-tight">
           {item.monto || "$0"}
         </Text>
-        <Text className="text-white/80 text-xs font-normal pt-0.5">
+        <Text className="text-white/80 text-xs font-inter-regular pt-0.5">
           {item.vencimiento || "Fecha no definida"}
         </Text>
       </View>

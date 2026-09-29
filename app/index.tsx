@@ -20,7 +20,7 @@ export default function Index() {
       >
         {/* Saludo */}
         <View className="w-full px-6 pt-8 pb-4 flex-row justify-between items-center">
-          <Text className="text-color-menu text-xl font-bold">
+          <Text className="text-color-menu text-xl font-inter-bold">
             Hola, Usuario 👋
           </Text>
         </View>

@@ -17,7 +17,7 @@ export default function BottomNavigation() {
       {/* 1. Inicio (Activo: blanco) */}
       <TouchableOpacity onPress={() => router.replace('/')} className="items-center justify-center flex-1 py-1">
         <Ionicons name="home" size={22} color="#FFFFFF" />
-        <Text className="text-white text-[10px] font-medium mt-1">
+        <Text className="text-white text-[10px] font-inter-regular mt-1">
           Inicio
         </Text>
       </TouchableOpacity>
@@ -25,7 +25,7 @@ export default function BottomNavigation() {
       {/* 2. Suscripciones (Inactivo) */}
       <TouchableOpacity className="items-center justify-center flex-1 py-1">
         <Ionicons name="repeat-outline" size={22} color="#94A3B8" />
-        <Text className="text-color-inactive text-[10px] font-medium mt-1">
+        <Text className="text-color-inactive text-[10px] font-inter-regular mt-1">
         Suscripciones
         </Text>
       </TouchableOpacity>
@@ -44,7 +44,7 @@ export default function BottomNavigation() {
       {/* 4. Tarjetas (Inactivo) */}
       <TouchableOpacity className="items-center justify-center flex-1 py-1" onPress={() => router.push('/Tarjetas')}>
         <Ionicons name="card-outline" size={22} color="#94A3B8" />
-        <Text className="text-color-inactive text-[10px] font-medium mt-1">
+        <Text className="text-color-inactive text-[10px] font-inter-regular mt-1">
           Tarjetas
         </Text>
       </TouchableOpacity>
@@ -52,7 +52,7 @@ export default function BottomNavigation() {
       {/* 5. Proyecciones (Inactivo) */}
       <TouchableOpacity className="items-center justify-center flex-1 py-1">
         <Ionicons name="trending-up-outline" size={22} color="#94A3B8" />
-        <Text className="text-color-inactive text-[10px] font-medium mt-1">
+        <Text className="text-color-inactive text-[10px] font-inter-regular mt-1">
           Proyecciones
         </Text>
       </TouchableOpacity>

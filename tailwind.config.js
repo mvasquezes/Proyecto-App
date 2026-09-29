@@ -7,6 +7,13 @@ module.exports = {
   presets: [require("nativewind/preset")],
   theme: {
     extend: {
+
+      //Agregar Fuentes Personalizadas
+      fontFamily: {
+        'inter-regular':['Inter_400Regular', 'sans-serif'],
+        'inter-medium':['Inter_500Medium', 'sans-serif'],
+        'inter-bold':['Inter_700Bold', 'sans-serif'],
+      },
       colors: {
         "color-menu" : "#0F172A",
         "color-action" : "#10B981",

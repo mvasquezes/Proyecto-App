@@ -13,7 +13,6 @@ export default function DetalleTarjetaScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { tarjetas, transacciones, pagarMesTarjeta } = useApp();
-
   const tarjeta = tarjetas.find((t) => t.id === id);
   const txTarjeta = transacciones.filter((tx) => tx.tarjetaId === id);
 
@@ -30,9 +29,8 @@ export default function DetalleTarjetaScreen() {
         <Text className="text-slate-600 text-base mb-4">Tarjeta no encontrada.</Text>
         <TouchableOpacity
           onPress={() => router.replace('/Tarjetas')}
-          className="px-5 py-2.5 bg-color-action rounded-xl"
-        >
-          <Text className="text-white font-bold">Volver a Tarjetas</Text>
+          className="px-5 py-2.5 bg-color-action rounded-xl">
+          <Text className="text-white font-inter-bold">Volver a Tarjetas</Text>
         </TouchableOpacity>
       </View>
     );
@@ -71,7 +69,7 @@ export default function DetalleTarjetaScreen() {
           <TouchableOpacity onPress={() => router.back()} className="w-8">
             <Ionicons name="chevron-back" size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text className="text-slate-600 text-base font-bold">Detalle Tarjeta</Text>
+          <Text className="text-slate-600 text-base font-inter-bold">Detalle Tarjeta</Text>
           <View className="w-8" />
         </View>
 
@@ -81,7 +79,7 @@ export default function DetalleTarjetaScreen() {
 
           {/* Cargos y Compras en Cuotas */}
           <View className="mt-2 mb-6">
-            <Text className="text-slate-900 text-base font-bold mb-3">
+            <Text className="text-slate-900 text-base font-inter-bold mb-3">
               Cargos y Compras en Cuotas
             </Text>
 
@@ -96,12 +94,12 @@ export default function DetalleTarjetaScreen() {
                   className="p-4 bg-white rounded-2xl border border-slate-100 flex-row justify-between items-center shadow-sm mb-3"
                 >
                   <View>
-                    <Text className="text-slate-900 text-base font-bold">{tx.motivo}</Text>
-                    <Text className="text-slate-400 text-xs font-normal">
+                    <Text className="text-slate-900 text-base font  bold">{tx.motivo}</Text>
+                    <Text className="text-slate-400 text-xs font-inter-medium">
                       Cuota {tx.cuotaActual} de {tx.totalCuotas} (Total: ${tx.montoTotal.toLocaleString('es-CL')})
                     </Text>
                   </View>
-                  <Text className="text-slate-900 text-base font-bold">
+                  <Text className="text-slate-900 text-base font-inter-bold">
                     ${tx.cuotaMensual.toLocaleString('es-CL')}
                   </Text>
                 </View>
@@ -115,7 +113,7 @@ export default function DetalleTarjetaScreen() {
             activeOpacity={0.8}
             className="w-full h-12 bg-color-action rounded-2xl items-center justify-center mb-8 shadow-sm"
           >
-            <Text className="text-white text-base font-bold">Marcar Mes como Pagado</Text>
+            <Text className="text-white text-base font-inter-bold">Marcar Mes como Pagado</Text>
           </TouchableOpacity>
         </ScrollView>
       </View>

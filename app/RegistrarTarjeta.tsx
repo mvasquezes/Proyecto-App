@@ -14,61 +14,81 @@ export default function NuevaTarjetaScreen() {
   const { agregarTarjeta } = useApp();
 
   const [bancoSeleccionado, setBancoSeleccionado] = useState<BankOption>(LISTA_BANCOS[0]);
-  const [nombrePersonalizado, setNombrePersonalizado] = useState('');
+  const[alias, setAlias] = useState('');
+  const[cupo, setCupo] = useState('');
   const [dia, setDia] = useState('');
-  
   const [modalVisible, setModalVisible] = useState(false);
   const [busqueda, setBusqueda] = useState('');
 
+// 1. Identificamos si es una tarjeta genérica que obliga a usar alias
+  const requiereAlias = bancoSeleccionado.id === 'visa' || bancoSeleccionado.id === 'mastercard';
 
-
-  // Evaluamos si el banco seleccionado permite personalizar nombre
-  const permiteEditarNombre = bancoSeleccionado.id === 'visa' || bancoSeleccionado.id === 'mastercard';
-
-  // El nombre visible es el personalizado si aplica, o el nombre del banco fijo
-  const nombreFinal = permiteEditarNombre 
-    ? (nombrePersonalizado || bancoSeleccionado.nombre)
+// 2. Definimos qué título se mostrará en grande en la tarjeta gráfica
+  const tituloTarjeta = requiereAlias && alias.trim() !== '' 
+    ? alias.trim() 
     : bancoSeleccionado.nombre;
 
-  /*useEffect(() => {
-    if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync('#0F172A');
-      NavigationBar.setButtonStyleAsync('light');
-    }
-  }, []);*/
 
-  // Previsualización dinámica sin monto ingresado manualmente
-  const previewItem: TarjetaItem = {
+const cupoNumerico = parseInt(cupo.replace(/[^0-9]/g, ''), 10) || 0;
+
+  // Previsualización dinámica
+const previewItem: TarjetaItem = {
     id: 'preview',
-    banco: nombreFinal,
-    nombre: nombreFinal,
+    banco: tituloTarjeta,
+    nombre: tituloTarjeta,
+    alias: alias || 'Sin alias',
     monto: '$0',
+    montoNumerico: 0,
+    diaVencimiento: parseInt(dia, 10) || 1,
+    estadoVencimiento: '',
     vencimiento: dia ? `${dia} de este mes` : 'Fecha de corte',
     colorHex: bancoSeleccionado.colorHex,
+    cupoTotal: cupoNumerico,
+    cupoDisponible: cupoNumerico,
   };
 
 const handleGuardar = () => {
-  const diaNumero = parseInt(dia, 10);
+    // === VALIDACIONES ===
+    
+    // A) Validación del Alias Obligatorio para Visa/Mastercard
+    if (requiereAlias && !alias.trim()) {
+      Alert.alert(
+        'Alias obligatorio', 
+        `Por favor ingresa un nombre para identificar tu tarjeta ${bancoSeleccionado.nombre} (Ej: Visa Platinum).`
+      );
+      return;
+    }
 
-  // Validación: que exista, que sea número y que esté entre 1 y 31
-  if (!dia.trim() || isNaN(diaNumero) || diaNumero < 1 || diaNumero > 31) {
-    Alert.alert(
-      'Día inválido',
-      'Por favor ingresa un día de facturación válido entre 1 y 31.'
-    );
-    return;
-  }
+    // B) Validación del Día
+    const diaNumero = parseInt(dia, 10);
+    if (!dia.trim() || isNaN(diaNumero) || diaNumero < 1 || diaNumero > 31) {
+      Alert.alert('Día inválido', 'Por favor ingresa un día de facturación válido entre 1 y 31.');
+      return;
+    }
+
+    // C) Validación del Cupo
+    if (cupoNumerico <= 0) {
+      Alert.alert('Cupo inválido', 'Por favor ingresa un cupo total mayor a 0.');
+      return;
+    }
+
+    // === GUARDADO ===
+    
+    // Si el alias está vacío (solo posible en bancos principales), usa el nombre del banco
+    const aliasFinal = alias.trim() !== '' ? alias.trim() : bancoSeleccionado.nombre;
 
     agregarTarjeta({
       id: Date.now().toString(),
-      banco: nombreFinal,
-      nombre: nombreFinal,
-      vencimiento: `${diaNumero} de este mes`,
+      banco: tituloTarjeta, // Título principal de la tarjeta
+      nombre: tituloTarjeta, 
+      alias: aliasFinal,    // Nombre interno
+      diaVencimiento: diaNumero,
       colorHex: bancoSeleccionado.colorHex,
+      cupoTotal: cupoNumerico,
     });
 
-  router.replace('/Tarjetas');
-};
+    router.replace('/Tarjetas');
+  };
 
   const bancosFiltrados = LISTA_BANCOS.filter(b => 
     b.nombre.toLowerCase().includes(busqueda.toLowerCase())
@@ -88,7 +108,7 @@ const handleGuardar = () => {
           <TouchableOpacity onPress={() => router.replace('/')} className="w-8">
             <Ionicons name="chevron-back" size={24} color="#0F172A" />
           </TouchableOpacity>
-          <Text className="text-slate-600 text-base font-bold">
+          <Text className="text-slate-600 text-base font-inter-bold">
             Formulario Nueva Tarjeta
           </Text>
           <View className="w-8" />
@@ -102,34 +122,54 @@ const handleGuardar = () => {
 
           {/* Selector de Banco */}
           <View className="mb-4">
-            <Text className="text-black text-base font-bold mb-1">Emisor / Banco</Text>
+            <Text className="text-black text-base font-inter-bold mb-1">Emisor / Banco</Text>
             <TouchableOpacity
               onPress={() => setModalVisible(true)}
               className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl flex-row items-center justify-between"
             >
-              <Text className="text-slate-900 text-sm font-semibold">
+              <Text className="text-slate-900 text-sm font-inter-medium">
                 {bancoSeleccionado.nombre}
               </Text>
               <Ionicons name="chevron-down" size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          {/* Nombre de Tarjeta: Se muestra solo para Visa y MasterCard */}
-          {permiteEditarNombre && (
-            <View className="mb-4">
-              <Text className="text-black text-base font-bold mb-1">Nombre de la Tarjeta</Text>
-              <TextInput
-                value={nombrePersonalizado}
-                onChangeText={setNombrePersonalizado}
-                placeholder={`Ej: ${bancoSeleccionado.nombre} Black / Platinum`}
-                placeholderTextColor="#94A3B8"
-                className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl text-slate-800"
-              />
-            </View>
-          )}
+          <View className="mb-4">
+            <Text className="text-black text-base font-inter-bold mb-1">
+              Alias de la Tarjeta {requiereAlias ? '(Obligatorio)' : '(Opcional)'}
+            </Text>
+            <TextInput
+              value={alias}
+              onChangeText={setAlias}
+              placeholder={
+                requiereAlias
+                  ? `Ej: ${bancoSeleccionado.nombre} Platinum`
+                  : 'Ej: Tarjeta del trabajo (opcional)'
+              }
+              placeholderTextColor="#94A3B8"
+              className={`w-full h-12 px-4 bg-slate-50 border rounded-xl text-slate-800 font-inter-medium ${
+                requiereAlias && !alias.trim() ? 'border-red-300' : 'border-slate-300'
+              }`}
+            />
+          </View>
+
+
+        {/* Campo Cupo Total */}
+                  <View className="mb-5">
+                    <Text className="text-black text-base font-inter-bold mb-1.5">Cupo Total</Text>
+                    <TextInput
+                      value={cupo}
+                      onChangeText={(txt) => setCupo(txt.replace(/[^0-9]/g, ''))}
+                      keyboardType="numeric"
+                      placeholder="$300.000"
+                      placeholderTextColor="#94A3B8"
+                      className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl text-slate-800 font-inter-medium"
+                    />
+                  </View>
+
         {/* Día Vencimiento */}
         <View className="mb-8">
-          <Text className="text-black text-base font-bold mb-1">
+          <Text className="text-black text-base font-inter-bold mb-1">
             Día de Facturación / Vencimiento
           </Text>
           <TextInput
@@ -164,7 +204,7 @@ const handleGuardar = () => {
             className="w-full h-12 bg-color-action rounded-2xl items-center justify-center mb-8 shadow-md"
             activeOpacity={0.8}
           >
-            <Text className="text-white text-base font-bold">
+            <Text className="text-white text-base font-inter-bold">
               Guardar Tarjeta
             </Text>
           </TouchableOpacity>
@@ -175,7 +215,7 @@ const handleGuardar = () => {
           <View className="flex-1 bg-black/50 justify-end">
             <View className="bg-slate-50 rounded-t-3xl max-h-[80%] p-6">
               <View className="flex-row items-center justify-between pb-4 border-b border-slate-200">
-                <Text className="text-slate-800 text-lg font-bold">Seleccionar Banco</Text>
+                <Text className="text-slate-800 text-lg font-inter-bold">Seleccionar Banco</Text>
                 <TouchableOpacity onPress={() => setModalVisible(false)}>
                   <Ionicons name="close" size={24} color="#0F172A" />
                 </TouchableOpacity>
@@ -198,12 +238,12 @@ const handleGuardar = () => {
                     key={item.id}
                     onPress={() => {
                       setBancoSeleccionado(item);
-                      setNombrePersonalizado(''); // resetea el nombre previo al cambiar emisor
+                      setAlias(''); 
                       setModalVisible(false);
                     }}
                     className="h-16 px-4 mb-2 bg-white rounded-2xl border border-slate-100 flex-row items-center justify-between shadow-sm"
                   >
-                    <Text className="text-slate-900 text-base font-semibold">
+                    <Text className="text-slate-900 text-base font-inter-medium">
                       {item.nombre}
                     </Text>
                     {bancoSeleccionado.id === item.id ? (
