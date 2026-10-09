@@ -1,49 +1,35 @@
+// createContext crea el contexto, useContext lo lee y useState guarda los datos
 import React, { createContext, ReactNode, useContext, useState } from 'react';
 
-/* ============================================================
-   TIPOS (definen la "forma" de los datos de la app)
-   ============================================================ */
-
-/**
- * Una compra / cargo registrado en una tarjeta.
- * Se guarda tal cual en el estado `transacciones`.
- */
+// una compra hecha con una tarjeta
 export interface TransaccionItem {
-  id: string;            // Identificador único (usamos la fecha en ms)
-  tarjetaId: string;     // A qué tarjeta pertenece (coincide con TarjetaItem.id)
-  motivo: string;        // Descripción de la compra (ej: "Ropa Ripley")
-  montoTotal: number;    // Monto completo de la compra
-  cuotaMensual: number;  // Lo que se paga cada mes (montoTotal / totalCuotas)
-  cuotaActual: number;   // Cuota que se está pagando ahora (empieza en 1)
-  totalCuotas: number;   // Cantidad total de cuotas
+  id: string;            // id unico, se usa la hora en milisegundos
+  tarjetaId: string;     // id de la tarjeta con la que se compro
+  motivo: string;        // descripcion de la compra (ej: "Ropa Ripley")
+  montoTotal: number;    // lo que costo la compra completa
+  cuotaMensual: number;  // lo que se paga cada mes (montoTotal / totalCuotas)
+  cuotaActual: number;   // en que cuota va, parte en 1
+  totalCuotas: number;   // cuantas cuotas son en total
 }
 
-/**
- * Tarjeta lista para mostrar en pantalla.
- * Incluye datos guardados por el usuario + datos CALCULADOS
- * (monto del mes, texto de vencimiento, cupo disponible).
- * Es lo que reciben TarjetaGrande y TarjetaMini.
- */
+// una tarjeta lista para mostrar: los datos que guardo el usuario mas los que se calculan
+// es lo que reciben TarjetaGrande y TarjetaMini
 export interface TarjetaItem {
   id: string;
-  nombre: string;             // Título que se ve en la tarjeta
-  alias: string;              // Nombre interno (obligatorio en Visa/MasterCard)
+  nombre: string;             // titulo que se ve en la tarjeta
+  alias: string;              // nombre interno (obligatorio en Visa y MasterCard)
   banco: string;
-  diaVencimiento: number;     // Día del mes (1 a 31)
-  vencimiento: string;        // Texto calculado: "Vence 15 de Octubre (Quedan 3 días)"
-  colorHex: string;           // Color de la tarjeta
-  montoNumerico: number;      // Total a pagar este mes (número, para sumar)
-  monto: string;              // Mismo total pero formateado: "$10.000"
-  estadoVencimiento: string;  // Solo el subtexto: "Quedan 3 días" / "Atrasada..."
-  cupoTotal: number;          // Cupo asignado al crear la tarjeta
-  cupoDisponible: number;     // Cupo que aún se puede usar (calculado)
+  diaVencimiento: number;     // dia del mes en que vence (1 a 31)
+  vencimiento: string;        // calculado, ej: "Vence 15 de Octubre (Quedan 3 dias)"
+  colorHex: string;           // color de la tarjeta
+  montoNumerico: number;      // calculado: total a pagar este mes como numero, para poder sumar
+  monto: string;              // calculado: el mismo total pero con formato, ej: "$10.000"
+  estadoVencimiento: string;  // calculado: solo la parte de "Quedan 3 dias" o "Atrasada..."
+  cupoTotal: number;          // cupo que se puso al crear la tarjeta
+  cupoDisponible: number;     // calculado: cupo que queda libre
 }
 
-/**
- * Datos que SÍ se guardan de una tarjeta (lo que el usuario escribe).
- * Los demás campos de TarjetaItem se calculan en el provider,
- * por eso no se guardan aquí: así nunca quedan desactualizados.
- */
+// solo los datos que escribe el usuario, los calculados no se guardan para que nunca queden desactualizados
 interface TarjetaBase {
   id: string;
   nombre: string;
@@ -54,15 +40,12 @@ interface TarjetaBase {
   cupoTotal: number;
 }
 
-/**
- * Todo lo que el contexto expone a las pantallas.
- * Se accede con: const { tarjetas, agregarTarjeta } = useApp();
- */
+// todo lo que el contexto le entrega a las pantallas
 interface AppContextType {
-  tarjetas: TarjetaItem[];              // Lista de tarjetas con datos calculados
-  transacciones: TransaccionItem[];     // Lista de todas las compras
+  tarjetas: TarjetaItem[];              // tarjetas con sus datos calculados
+  transacciones: TransaccionItem[];     // todas las compras de todas las tarjetas
   agregarTarjeta: (tarjeta: TarjetaBase) => void;
-  // Devuelve true si se registró, false si se rechazó (ej: supera el cupo)
+  // devuelve true si se guardo y false si se rechazo (por ejemplo si supera el cupo)
   registrarTransaccion: (
     tarjetaId: string,
     motivo: string,
@@ -70,47 +53,47 @@ interface AppContextType {
     cuotas: number
   ) => boolean;
   pagarMesTarjeta: (tarjetaId: string) => void;
-  totalConsolidado: number;             // Suma a pagar este mes entre todas las tarjetas
+  totalConsolidado: number;             // lo que hay que pagar este mes sumando todas las tarjetas
 }
 
-// El contexto parte como `undefined`; useApp() valida que exista un Provider.
+// crea el contexto vacio (undefined), useApp revisa mas abajo que exista el Provider
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-/* ============================================================
-   FUNCIONES AUXILIARES
-   ============================================================ */
-
-/**
- * Calcula el texto de vencimiento según el día de hoy.
- * Ejemplo: hoy es 10 y vence el 15 -> "Vence 15 de Octubre" + "Quedan 5 días".
- * Devuelve dos textos: `texto` (fecha) y `subtexto` (estado).
- */
+// arma los textos del vencimiento comparando el dia de hoy con el dia que vence la tarjeta
+// ojo: solo compara el dia y no el mes, si vence el 31 en un mes de 30 dias igual dice 31,
+// y pasado el dia sale "Atrasada" aunque ya se haya pagado el mes
 function calcularEstadoVencimiento(diaVencimiento: number): { texto: string; subtexto: string } {
+  // fecha de hoy
   const hoy = new Date();
+  // numero del dia de hoy (1 a 31)
   const diaHoy = hoy.getDate();
+  // nombres de los meses para mostrarlos en texto
   const meses = [
     'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
     'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
   ];
-  const nombreMes = meses[hoy.getMonth()]; // getMonth() devuelve 0-11
+  // getMonth devuelve de 0 a 11, asi que sirve directo como posicion en el arreglo
+  const nombreMes = meses[hoy.getMonth()];
 
+  // ej: "15 de Octubre"
   const textoFecha = `${diaVencimiento} de ${nombreMes}`;
 
+  // todavia no llega el dia: cuenta cuantos dias faltan
   if (diaHoy < diaVencimiento) {
-    // Aún no vence: contamos los días que faltan
     const diff = diaVencimiento - diaHoy;
     return {
       texto: `Vence ${textoFecha}`,
+      // agrega la "s" de dias solo si es mas de 1
       subtexto: `Quedan ${diff} día${diff > 1 ? 's' : ''}`,
     };
+  // vence justo hoy
   } else if (diaHoy === diaVencimiento) {
-    // Vence justo hoy
     return {
       texto: `Vence hoy (${textoFecha})`,
       subtexto: '¡Paga hoy!',
     };
+  // ya paso el dia: cuenta los dias de atraso
   } else {
-    // Ya pasó la fecha: contamos los días de atraso
     const diff = diaHoy - diaVencimiento;
     return {
       texto: `Vence ${textoFecha}`,
@@ -119,132 +102,109 @@ function calcularEstadoVencimiento(diaVencimiento: number): { texto: string; sub
   }
 }
 
-/* ============================================================
-   PROVIDER (guarda el estado global y las funciones)
-   ============================================================ */
-
+// el provider envuelve la app (en _layout.tsx) y guarda todos los datos
+// ojo: todo queda en memoria con useState, si se cierra o recarga la app se pierde
 export function AppProvider({ children }: { children: ReactNode }) {
-  /* ---------- ESTADO ---------- */
-
-  // Tarjetas tal como las guardó el usuario (sin datos calculados).
+  // las tarjetas tal cual las guardo el usuario, sin los datos calculados
   const [tarjetasBase, setTarjetasBase] = useState<TarjetaBase[]>([]);
 
-  // Todas las compras de todas las tarjetas.
+  // todas las compras de todas las tarjetas
   const [transacciones, setTransacciones] = useState<TransaccionItem[]>([]);
 
-  /* ---------- DATOS CALCULADOS ----------
-     Se recalculan en cada render a partir de tarjetasBase y transacciones.
-     Por eso, al registrar una compra o pagar un mes, las pantallas
-     se actualizan solas sin tener que guardar estos valores. */
-
+  // recorre cada tarjeta guardada y le agrega los datos calculados
+  // esto se vuelve a hacer en cada render, por eso al pagar o comprar todo se actualiza solo
   const tarjetas: TarjetaItem[] = tarjetasBase.map((t) => {
-    // Compras que pertenecen a esta tarjeta
+    // se queda con las compras de esta tarjeta
     const txDeEstaTarjeta = transacciones.filter((tx) => tx.tarjetaId === t.id);
 
-    // Lo que se paga ESTE mes: suma de la cuota mensual de cada compra
+    // lo que se paga este mes: suma la cuota mensual de cada compra
     const montoMes = txDeEstaTarjeta.reduce((acc, curr) => acc + curr.cuotaMensual, 0);
 
-    // Saldo pendiente: lo que todavía falta pagar (incluye la cuota actual).
-    // Ej: cuota de $100.000, 6 cuotas, va en la 2 -> quedan 5 -> $500.000.
-    // Esto es lo que "ocupa" el cupo de la tarjeta.
+    // lo que falta por pagar contando la cuota actual, es lo que ocupa cupo
+    // ej: cuota de $100.000, 6 cuotas, va en la 2 -> quedan 5 -> $500.000
     const saldoPendiente = txDeEstaTarjeta.reduce(
       (acc, curr) => acc + curr.cuotaMensual * (curr.totalCuotas - curr.cuotaActual + 1),
       0
     );
 
-    // Textos de vencimiento según el día de hoy
+    // saca los textos de vencimiento segun el dia de hoy
     const { texto, subtexto } = calcularEstadoVencimiento(t.diaVencimiento);
 
     return {
-      ...t, // Copia los datos guardados (id, banco, alias, cupoTotal, etc.)
+      ...t, // copia los datos guardados (id, banco, alias, cupoTotal, etc.)
       montoNumerico: montoMes,
-      monto: `$${montoMes.toLocaleString('es-CL')}`, // Formato chileno: $10.000
+      monto: `$${montoMes.toLocaleString('es-CL')}`, // pone los puntos de miles, ej: $10.000
       vencimiento: `${texto} (${subtexto})`,
       estadoVencimiento: subtexto,
-      // Cupo disponible = cupo total - saldo pendiente (nunca menor a 0)
+      // cupo total menos lo pendiente, con Math.max para que nunca baje de 0
       cupoDisponible: Math.max(t.cupoTotal - saldoPendiente, 0),
     };
   });
 
-  // Total a pagar este mes sumando todas las tarjetas (para el Home)
+  // suma lo que hay que pagar este mes en todas las tarjetas
   const totalConsolidado = tarjetas.reduce((acc, t) => acc + t.montoNumerico, 0);
 
-  /* ---------- ACCIONES ---------- */
-
-  /**
-   * Agrega una tarjeta nueva al inicio de la lista.
-   * Se usa desde RegistrarTarjeta.tsx.
-   */
+  // agrega una tarjeta nueva (se llama desde RegistrarTarjeta.tsx)
   const agregarTarjeta = (nueva: TarjetaBase) => {
-    // `prev` es la lista actual; ponemos la nueva primero y luego las anteriores
+    // prev es la lista actual: pone la nueva primero y despues las que ya estaban
     setTarjetasBase((prev) => [nueva, ...prev]);
   };
 
-  /**
-   * Registra una compra en una tarjeta.
-   * Devuelve false (y no guarda nada) si la tarjeta no existe
-   * o si el monto supera el cupo disponible.
-   * Se usa desde RegistrarTransaccion.tsx.
-   */
+  // registra una compra (se llama desde RegistrarTransaccion.tsx)
   const registrarTransaccion = (
     tarjetaId: string,
     motivo: string,
     monto: number,
     cuotas: number
   ): boolean => {
-    // Buscamos la tarjeta para revisar su cupo
+    // busca la tarjeta para revisar cuanto cupo le queda
     const tarjeta = tarjetas.find((t) => t.id === tarjetaId);
 
-    // Validación del cupo: protege el límite aunque otra pantalla llame esta función
+    // si la tarjeta no existe o la compra es mas grande que el cupo libre, no guarda nada y devuelve false
     if (!tarjeta || monto > tarjeta.cupoDisponible) {
       return false;
     }
 
-    // Si las cuotas vienen en 0 o vacías, se toma 1 (pago único)
+    // si las cuotas vienen en 0 o negativas se toma como 1 (pago en una sola cuota)
     const totalCuotasValidas = cuotas > 0 ? cuotas : 1;
 
-    // Cuota mensual redondeada para evitar decimales
+    // divide el monto en las cuotas y redondea para no tener decimales
+    // por el redondeo puede quedar un peso de diferencia (ej: 100.000 en 3 cuotas = 33.333 x 3 = 99.999)
     const cuotaMensual = Math.round(monto / totalCuotasValidas);
 
+    // arma la compra nueva
     const nuevaTx: TransaccionItem = {
-      id: Date.now().toString(), // ID único basado en la hora actual
+      id: Date.now().toString(), // la hora actual en milisegundos como id
       tarjetaId,
       motivo,
       montoTotal: monto,
       cuotaMensual,
-      cuotaActual: 1, // Toda compra parte en la cuota 1
+      cuotaActual: 1, // toda compra parte en la cuota 1
       totalCuotas: totalCuotasValidas,
     };
 
-    // La compra nueva va primero en la lista
+    // la agrega al principio de la lista de compras
     setTransacciones((prev) => [nuevaTx, ...prev]);
     return true;
   };
 
-  /**
-   * Marca el mes como pagado en una tarjeta:
-   * - Cada compra de esa tarjeta avanza una cuota.
-   * - Las compras que ya completaron todas sus cuotas se eliminan.
-   * Al bajar el saldo pendiente, el cupo disponible se libera solo.
-   * Se usa desde el detalle de la tarjeta ([id].tsx).
-   */
+  // paga el mes de una tarjeta (se llama desde el detalle, [id].tsx)
   const pagarMesTarjeta = (tarjetaId: string) => {
     setTransacciones((prev) =>
       prev
         .map((tx) => {
-          // Solo avanzamos las compras de la tarjeta indicada
+          // a las compras de esta tarjeta les suma 1 a la cuota actual
           if (tx.tarjetaId === tarjetaId) {
             return { ...tx, cuotaActual: tx.cuotaActual + 1 };
           }
-          return tx; // Las de otras tarjetas quedan igual
+          return tx; // las de otras tarjetas quedan igual
         })
-        // Si cuotaActual pasó del total, la compra ya está pagada: se retira
+        // borra las compras que ya pasaron su ultima cuota, asi se libera el cupo
         .filter((tx) => tx.cuotaActual <= tx.totalCuotas)
     );
   };
 
-  /* ---------- VALOR QUE SE ENTREGA A TODA LA APP ---------- */
-
+  // entrega los datos y funciones a todo lo que este dentro del provider
   return (
     <AppContext.Provider
       value={{
@@ -261,17 +221,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/* ============================================================
-   HOOK PERSONALIZADO
-   ============================================================ */
-
-/**
- * Atajo para leer el contexto desde cualquier pantalla o componente:
- *   const { tarjetas, registrarTransaccion } = useApp();
- * Lanza un error si se usa fuera de <AppProvider> (configurado en _layout.tsx).
- */
+// atajo para usar el contexto en cualquier pantalla: const { tarjetas } = useApp();
 export function useApp() {
+  // lee el contexto
   const context = useContext(AppContext);
+  // si se usa fuera del AppProvider tira un error, asi nos damos cuenta altiro
   if (!context) throw new Error('useApp debe usarse dentro de AppProvider');
   return context;
 }
