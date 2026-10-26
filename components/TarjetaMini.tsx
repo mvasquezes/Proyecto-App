@@ -1,10 +1,11 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import { COLOR_TARJETA_DEFAULT } from '../constants/banks';
+import { formatearCLP } from '../constants/formato';
 import { TarjetaItem } from '../context/AppContext';
 
-const formatearCLP = (n: number) => `$ ${n.toLocaleString('es-CL')}`;
-
 export default function TarjetaMini({ item }: { item: TarjetaItem }) {
+  // Cupo usado y su porcentaje (limitado a 100% para que la cifra nunca se desborde)
   const utilizado = Math.max(item.cupoTotal - item.cupoDisponible, 0);
   const porcentaje =
     item.cupoTotal > 0 ? Math.min((utilizado / item.cupoTotal) * 100, 100) : 0;
@@ -14,7 +15,7 @@ export default function TarjetaMini({ item }: { item: TarjetaItem }) {
       {/* Tarjeta pequeña */}
       <View
         className="w-[42%] h-[104px] p-3 rounded-xl justify-between overflow-hidden shadow-sm"
-        style={{ backgroundColor: item.colorHex || '#1E293B' }}>
+        style={{ backgroundColor: item.colorHex || COLOR_TARJETA_DEFAULT }}>
         <View className="w-16 h-16 -left-5 -top-5 absolute bg-white/10 rounded-full" />
         <Text className="text-white/80 text-[10px] font-inter-medium">
           Día {item.diaVencimiento}
@@ -23,7 +24,6 @@ export default function TarjetaMini({ item }: { item: TarjetaItem }) {
           {item.banco}
         </Text>
       </View>
-
 
       {/* Datos a la derecha */}
       <View className="flex-1 flex-row justify-between pl-4">

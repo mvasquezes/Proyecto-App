@@ -1,20 +1,20 @@
-import { Ionicons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import HomeCardsCarousel from '../components/CarruselTarjetas';
+import HomeSuscripciones from '../components/HomeSuscripciones';
+import HomeCard from '../components/HomeTarjeta';
 import BottomNavigation from '../components/MenuNavegacion';
 
 export default function Index() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
 
   return (
-    <View 
-      className="flex-1 bg-bg-color" 
+    <View
+      className="flex-1 bg-bg-color"
       style={{ paddingTop: insets.top }}
     >
-      <ScrollView 
+      <ScrollView
         className="flex-1"
         showsVerticalScrollIndicator={false}
       >
@@ -25,24 +25,17 @@ export default function Index() {
           </Text>
         </View>
 
+        {/* Tarjeta principal home */}
+        <HomeCard />
 
-        {/* Botón de Acción Rápida: Nueva Transacción */}
-        <View className="w-full px-6 pb-6">
-          <TouchableOpacity
-            onPress={() => router.push('/RegistrarTransaccion')}
-            activeOpacity={0.8}
-            className="w-full h-14 bg-color-action rounded-2xl flex-row items-center justify-center gap-2 shadow-sm"
-          >
-            <Ionicons name="add-circle-outline" size={22} color="#FFFFFF" />
-            <Text className="text-white text-base font-bold tracking-tight">
-              Registrar Transacción
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Carrusel de Mis Tarjetas */}
+        <HomeCardsCarousel />
 
+        {/* Suscripciones */}
+        <HomeSuscripciones />
       </ScrollView>
 
-      {/* Navegación inferior fija */}
+      {/* Navegación inferior fija (el botón "+" registra transacciones, suscripciones y tarjetas) */}
       <BottomNavigation />
     </View>
   );

@@ -4,6 +4,9 @@ export interface BankOption {
   colorHex: string;
 }
 
+// Color de respaldo cuando una tarjeta no trae color propio
+export const COLOR_TARJETA_DEFAULT = '#1E293B';
+
 export const LISTA_BANCOS: BankOption[] = [
   { id: 'bancoestado', nombre: 'Banco Estado', colorHex: '#EA580C' },
   { id: 'falabella', nombre: 'CMR Falabella', colorHex: '#15803D' },

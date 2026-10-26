@@ -1,21 +1,32 @@
-import { Ionicons } from '@expo/vector-icons';
 import * as NavigationBar from 'expo-navigation-bar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { Alert, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 
+import PantallaFormulario from '../../components/PantallaFormulario';
+import SuscripcionFila from '../../components/SuscripcionFila';
 import CardItem from '../../components/TarjetaGrande';
+import { avisar, confirmar } from '../../constants/alertas';
+import { montoDeCuota } from '../../constants/cuotas';
+import { claveMes, nombreMesDeClave } from '../../constants/fechas';
+import { formatearCLP } from '../../constants/formato';
+import { RUTAS } from '../../constants/rutas';
 import { useApp } from '../../context/AppContext';
 
 export default function DetalleTarjetaScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const insets = useSafeAreaInsets();
-  const { tarjetas, transacciones, pagarMesTarjeta } = useApp();
+  const { tarjetas, transacciones, suscripciones, pagarMesTarjeta } = useApp();
+
   const tarjeta = tarjetas.find((t) => t.id === id);
   const txTarjeta = transacciones.filter((tx) => tx.tarjetaId === id);
+  const mesActual = claveMes();
 
+  // Solo las suscripciones pendientes de este mes: al pagar el mes desaparecen y vuelven el mes siguiente
+  const subsTarjeta = suscripciones.filter((s) => s.tarjetaId === id && !s.pagadaEsteMes);
+  const totalSubs = subsTarjeta.reduce((acc, s) => acc + s.monto, 0);
+
+  // Color de la barra de navegación de Android (solo móvil)
   useEffect(() => {
     if (Platform.OS === 'android') {
       NavigationBar.setBackgroundColorAsync('#0F172A');
@@ -28,7 +39,7 @@ export default function DetalleTarjetaScreen() {
       <View className="flex-1 bg-white items-center justify-center p-6">
         <Text className="text-slate-600 text-base mb-4">Tarjeta no encontrada.</Text>
         <TouchableOpacity
-          onPress={() => router.replace('/Tarjetas')}
+          onPress={() => router.replace(RUTAS.tarjetas)}
           className="px-5 py-2.5 bg-color-action rounded-xl">
           <Text className="text-white font-inter-bold">Volver a Tarjetas</Text>
         </TouchableOpacity>
@@ -36,87 +47,119 @@ export default function DetalleTarjetaScreen() {
     );
   }
 
+  /**
+   * Registra el pago del mes: avanza una cuota en cada compra,
+   * quita las que terminan, marca las suscripciones como pagadas y libera el cupo.
+   * Solo se puede una vez por mes en cada tarjeta.
+   */
   const handleMarcarPagado = () => {
-    if (txTarjeta.length === 0) {
-      Alert.alert('Al día', 'Esta tarjeta no tiene cuotas pendientes este mes.');
+    // Ya se pagó este mes: evita avanzar las cuotas dos veces
+    if (tarjeta.pagadaEsteMes) {
+      avisar('Mes ya pagado', 'Ya registraste el pago de este mes en esta tarjeta. Podrás volver a pagar el próximo mes.');
       return;
     }
 
-    Alert.alert(
-      'Confirmar Pago del Mes',
-      '¿Deseas marcar este mes como pagado? Las compras avanzarán una cuota y las que finalicen se eliminarán.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Confirmar Pago',
-          onPress: () => {
-            pagarMesTarjeta(tarjeta.id);
-            Alert.alert('Listo', 'Cuotas del mes pagadas con éxito.');
-          },
-        },
-      ]
-    );
+    // Nada por pagar este mes (ni cuotas ni suscripciones)
+    if (tarjeta.montoNumerico === 0) {
+      avisar('Al día', 'Esta tarjeta no tiene pagos pendientes este mes.');
+      return;
+    }
+
+    // `montoNumerico` ya incluye cuotas + suscripciones pendientes
+    const montoMes = formatearCLP(tarjeta.montoNumerico);
+
+    confirmar({
+      titulo: 'Registrar pago del mes',
+      mensaje:
+        `Se registrará el pago de ${montoMes}. Cada compra avanzará una cuota (las que estén en su última cuota saldrán del resumen) ` +
+        `y las suscripciones quedarán pagadas este mes y volverán a cobrarse el próximo. Ese monto se liberará de tu cupo disponible.`,
+      textoConfirmar: 'Confirmar pago',
+      onConfirmar: () => {
+        if (pagarMesTarjeta(tarjeta.id)) {
+          avisar('Pago registrado', `Pagaste ${montoMes}. Tu cupo disponible aumentó.`);
+        }
+      },
+    });
   };
 
   return (
-    <View
-      className="flex-1 bg-color-menu"
-      style={{ paddingTop: insets.top, paddingBottom: insets.bottom }}
-    >
-      <View className="flex-1 bg-white">
-        {/* Encabezado */}
-        <View className="px-6 pt-4 pb-3 flex-row items-center justify-between border-b border-slate-100">
-          <TouchableOpacity onPress={() => router.back()} className="w-8">
-            <Ionicons name="chevron-back" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text className="text-slate-600 text-base font-inter-bold">Detalle Tarjeta</Text>
-          <View className="w-8" />
+    <PantallaFormulario titulo="Detalle Tarjeta" onVolver={() => router.back()}>
+      <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
+        {/* Tarjeta superior con datos dinámicos */}
+        <CardItem item={tarjeta} />
+
+        {/* Cargos y Compras en Cuotas */}
+        <View className="mt-2 mb-6">
+          <Text className="text-slate-900 text-base font-inter-bold mb-3">
+            Cargos y Compras en Cuotas
+          </Text>
+
+          {txTarjeta.length === 0 ? (
+            <View className="p-4 rounded-2xl border border-dashed border-slate-200 items-center justify-center">
+              <Text className="text-slate-400 text-xs">Sin pagos pendientes para este mes</Text>
+            </View>
+          ) : (
+            txTarjeta.map((tx) => (
+              <View
+                key={tx.id}
+                className="p-4 bg-white rounded-2xl border border-slate-100 flex-row justify-between items-center shadow-sm mb-3"
+              >
+                <View>
+                  <Text className="text-slate-900 text-base font-inter-bold">{tx.motivo}</Text>
+                  <Text className="text-slate-400 text-xs font-inter-medium">
+                    Cuota {tx.cuotaActual} de {tx.totalCuotas} (Total: {formatearCLP(tx.montoTotal)})
+                  </Text>
+                  {/* Compra hecha después del corte: aún no suma al total de este mes */}
+                  {tx.mesInicio > mesActual && (
+                    <Text className="text-amber-600 text-[11px] font-inter-medium mt-0.5">
+                      Se cobra desde {nombreMesDeClave(tx.mesInicio)}
+                    </Text>
+                  )}
+                </View>
+                {/* La última cuota puede valer distinto: absorbe el redondeo */}
+                <Text className="text-slate-900 text-base font-inter-bold">
+                  {formatearCLP(montoDeCuota(tx, tx.cuotaActual))}
+                </Text>
+              </View>
+            ))
+          )}
         </View>
 
-        <ScrollView className="flex-1 px-6 pt-4" showsVerticalScrollIndicator={false}>
-          {/* Tarjeta superior con datos dinámicos */}
-          <CardItem item={tarjeta} />
-
-          {/* Cargos y Compras en Cuotas */}
-          <View className="mt-2 mb-6">
-            <Text className="text-slate-900 text-base font-inter-bold mb-3">
-              Cargos y Compras en Cuotas
-            </Text>
-
-            {txTarjeta.length === 0 ? (
-              <View className="p-4 rounded-2xl border border-dashed border-slate-200 items-center justify-center">
-                <Text className="text-slate-400 text-xs">Sin pagos pendientes para este mes</Text>
+        {/* Suscripciones asociadas a esta tarjeta */}
+        <View className="mb-6">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-slate-900 text-base font-inter-bold">Suscripciones</Text>
+            {subsTarjeta.length > 0 && (
+              <View className="flex-row items-baseline px-3 py-1.5 bg-white rounded-full border border-slate-100">
+                <Text className="text-slate-900 text-xs font-inter-bold">{formatearCLP(totalSubs)}</Text>
+                <Text className="text-slate-400 text-[10px] font-inter-regular"> /mes</Text>
               </View>
-            ) : (
-              txTarjeta.map((tx) => (
-                <View
-                  key={tx.id}
-                  className="p-4 bg-white rounded-2xl border border-slate-100 flex-row justify-between items-center shadow-sm mb-3"
-                >
-                  <View>
-                    <Text className="text-slate-900 text-base font  bold">{tx.motivo}</Text>
-                    <Text className="text-slate-400 text-xs font-inter-medium">
-                      Cuota {tx.cuotaActual} de {tx.totalCuotas} (Total: ${tx.montoTotal.toLocaleString('es-CL')})
-                    </Text>
-                  </View>
-                  <Text className="text-slate-900 text-base font-inter-bold">
-                    ${tx.cuotaMensual.toLocaleString('es-CL')}
-                  </Text>
-                </View>
-              ))
             )}
           </View>
 
-          {/* Botón: Marcar Mes como Pagado */}
-          <TouchableOpacity
-            onPress={handleMarcarPagado}
-            activeOpacity={0.8}
-            className="w-full h-12 bg-color-action rounded-2xl items-center justify-center mb-8 shadow-sm"
-          >
-            <Text className="text-white text-base font-inter-bold">Marcar Mes como Pagado</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
-    </View>
+          {subsTarjeta.length === 0 ? (
+            <View className="p-4 rounded-2xl border border-dashed border-slate-200 items-center justify-center">
+              <Text className="text-slate-400 text-xs">Sin suscripciones pendientes este mes</Text>
+            </View>
+          ) : (
+            subsTarjeta.map((s) => <SuscripcionFila key={s.id} item={s} ocultarTarjeta />)
+          )}
+        </View>
+
+        {/* Botón: Registrar Pago del Mes */}
+        <TouchableOpacity
+          onPress={handleMarcarPagado}
+          activeOpacity={0.8}
+          disabled={tarjeta.pagadaEsteMes}
+          className={`w-full h-12 rounded-2xl items-center justify-center mb-8 shadow-sm ${
+            tarjeta.pagadaEsteMes ? 'bg-slate-300' : 'bg-color-action'
+          }`}
+        >
+          <Text className="text-white text-base font-inter-bold">
+            {tarjeta.pagadaEsteMes ? 'Mes pagado' : 'Registrar Pago del Mes'}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </PantallaFormulario>
   );
 }

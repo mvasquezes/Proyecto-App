@@ -1,244 +1,157 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import {
-  Alert,
-  Modal,
-  Platform,
-  ScrollView,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 
-import { TarjetaItem, useApp } from '../context/AppContext';
+import { CampoFormulario, estiloInput, SelectorCampo } from '../components/CampoFormulario';
+import ModalSeleccion, { FilaOpcion } from '../components/ModalSeleccion';
+import PantallaFormulario from '../components/PantallaFormulario';
+import { avisar } from '../constants/alertas';
+import { formatearCLP, formatearMiles, soloDigitos } from '../constants/formato';
+import { RUTAS } from '../constants/rutas';
+import { useApp } from '../context/AppContext';
+import { useRequerirTarjetas } from '../hooks/useRequerirTarjetas';
 
 export default function NuevaTransaccionScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { tarjetas, registrarTransaccion } = useApp();
 
-  const [tarjetaSeleccionada, setTarjetaSeleccionada] = useState<TarjetaItem | null>(
-    tarjetas.length > 0 ? tarjetas[0] : null
-  );
+  // Sin tarjetas no se puede registrar una transacción: ofrece crear una
+  useRequerirTarjetas('transacción', RUTAS.inicio);
+
+  // Se guarda solo el id y la tarjeta se busca en cada render:
+  // así siempre tiene el cupo actualizado (una copia guardada quedaría desfasada).
+  const [tarjetaId, setTarjetaId] = useState<string>(tarjetas[0]?.id ?? '');
+  const tarjetaSeleccionada = tarjetas.find((t) => t.id === tarjetaId) ?? null;
+
   const [motivo, setMotivo] = useState('');
-  const [monto, setMonto] = useState('');
+  const [monto, setMonto] = useState('');   // Solo dígitos; se muestra con puntos de miles
   const [cuotas, setCuotas] = useState('1');
   const [modalVisible, setModalVisible] = useState(false);
 
-  useEffect(() => {
-if (tarjetas.length === 0) {
-   // En Web
-      if (Platform.OS === 'web') {
-        
-       
-        const quiereCrear = window.confirm(
-          'Sin tarjetas registradas.\n\nDebes registrar al menos una tarjeta antes de agregar una transacción.\n\n¿Deseas crear una tarjeta ahora?'
-        );
-
-        if (quiereCrear) {
-          router.replace('/RegistrarTarjeta');
-        } else {
-          router.replace('/');
-        }
-      } else {
-        // En Móvil (Android / iOS)
-        Alert.alert(
-          'Sin tarjetas',
-          'Debes registrar al menos una tarjeta antes de agregar una facturación o compra.',
-          [
-            {
-              text: 'Crear Tarjeta',
-              onPress: () => router.replace('/RegistrarTarjeta'),
-            },
-            {
-              text: 'Cancelar',
-              style: 'cancel',
-              onPress: () => router.replace('/'),
-            },
-          ]
-        );
-      }
-    }
-  }, [tarjetas]);
-
   const handleGuardar = () => {
     if (!tarjetaSeleccionada) {
-      Alert.alert('Error', 'Selecciona una tarjeta para asignar la facturación.');
+      avisar('Error', 'Selecciona una tarjeta para asignar la facturación.');
       return;
     }
 
     if (!motivo.trim()) {
-      Alert.alert('Campo requerido', 'Por favor ingresa un motivo para la compra.');
+      avisar('Campo requerido', 'Por favor ingresa un motivo para la compra.');
       return;
     }
 
-    const montoLimpio = parseInt(monto.replace(/[^0-9]/g, ''), 10);
+    const montoLimpio = parseInt(monto, 10);
     if (isNaN(montoLimpio) || montoLimpio <= 0) {
-      Alert.alert('Monto inválido', 'Por favor ingresa un monto mayor a cero.');
+      avisar('Monto inválido', 'Por favor ingresa un monto mayor a cero.');
       return;
     }
 
-    const numCuotas = parseInt(cuotas.replace(/[^0-9]/g, ''), 10) || 1;
+    const numCuotas = parseInt(cuotas, 10) || 1;
 
-    registrarTransaccion(
+    const ok = registrarTransaccion(
       tarjetaSeleccionada.id,
       motivo.trim(),
       montoLimpio,
       numCuotas
     );
 
-if (Platform.OS === 'web') {
-      // En Web alert() bloquea la pantalla hasta que des click en Aceptar
-      alert('Agregado correctamente');
-      router.replace('/');
-    } else {
-      // En móvil (Android / iOS) usamos el diálogo nativo
-      Alert.alert('Éxito', 'Agregado correctamente', [
-        {
-          text: 'OK',
-          onPress: () => router.replace('/'),
-        },
-      ]);
+    // Si el contexto la rechazó, el monto supera el cupo: no mostramos "éxito"
+    if (!ok) {
+      avisar(
+        'Cupo insuficiente',
+        `El monto (${formatearCLP(montoLimpio)}) supera el cupo disponible de ${tarjetaSeleccionada.banco} (${formatearCLP(tarjetaSeleccionada.cupoDisponible)}).`
+      );
+      return; // No navegamos: el usuario puede corregir el monto
     }
+
+    avisar('Éxito', 'Agregado correctamente', () => router.replace(RUTAS.inicio));
   };
 
   return (
-    <View
-      className="flex-1 bg-color-menu"
-      style={{
-        paddingTop: insets.top,
-        paddingBottom: insets.bottom,
-      }}
-    >
-      <View className="flex-1 bg-white">
-        {/* Encabezado */}
-        <View className="px-6 pt-4 pb-3 flex-row items-center justify-between border-b border-slate-100">
-          <TouchableOpacity onPress={() => router.replace('/')} className="w-8">
-            <Ionicons name="chevron-back" size={24} color="#0F172A" />
-          </TouchableOpacity>
-          <Text className="text-slate-600 text-base font-inter-bold">
-            Transacciones
-          </Text>
-          <View className="w-8" />
-        </View>
-
-        <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
-          {/* 1. Ingrese Tarjeta */}
-          <View className="mb-5">
-            <Text className="text-black text-base font-bold mb-1.5">Ingrese tarjeta</Text>
-            <TouchableOpacity
-              onPress={() => setModalVisible(true)}
-              className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl flex-row items-center justify-between"
-            >
-              <Text className="text-slate-900 text-sm font-inter-medium">
-                {tarjetaSeleccionada
-                  ? `${tarjetaSeleccionada.banco} - ${tarjetaSeleccionada.nombre}`
-                  : 'Selecciona una tarjeta'}
-              </Text>
-              <Ionicons name="chevron-down" size={18} color="#64748B" />
-            </TouchableOpacity>
-          </View>
-
-          {/* 2. Ingrese Motivo */}
-          <View className="mb-5">
-            <Text className="text-black text-base font-inter-bold mb-1.5">Ingrese motivo</Text>
-            <TextInput
-              value={motivo}
-              onChangeText={setMotivo}
-              placeholder="Ejemplo: Compra ropa Ripley"
-              placeholderTextColor="#94A3B8"
-              className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl text-slate-800"
-            />
-          </View>
-
-          {/* 3. Ingrese Monto */}
-          <View className="mb-5">
-            <Text className="text-black text-base font-inter-bold mb-1.5">Ingrese monto</Text>
-            <TextInput
-              value={monto}
-              onChangeText={(txt) => setMonto(txt.replace(/[^0-9]/g, ''))}
-              keyboardType="numeric"
-              placeholder="$30.000"
-              placeholderTextColor="#94A3B8"
-              className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl text-slate-800"
-            />
-          </View>
-
-          {/* 4. Ingrese Cantidad Cuotas */}
-          <View className="mb-8">
-            <Text className="text-black text-base font-inter-bold mb-1.5">Ingrese cantidad cuotas</Text>
-            <TextInput
-              value={cuotas}
-              onChangeText={(txt) => setCuotas(txt.replace(/[^0-9]/g, ''))}
-              keyboardType="numeric"
-              placeholder="Ingresar cantidad de cuotas (ej. 1)"
-              placeholderTextColor="#94A3B8"
-              className="w-full h-12 px-4 bg-slate-50 border border-slate-300 rounded-xl text-slate-800"
-            />
-          </View>
-
-          {/* Botón Agregar Facturación */}
-          <TouchableOpacity
-            onPress={handleGuardar}
-            className="w-full h-12 bg-emerald-500 rounded-2xl items-center justify-center mb-8 shadow-md"
-            activeOpacity={0.8}
-          >
-            <Text className="text-white text-base font-inter-bold">
-              Agregar Transacción
+    <PantallaFormulario titulo="Transacciones" onVolver={() => router.replace(RUTAS.inicio)}>
+      <ScrollView className="flex-1 px-6 pt-6" showsVerticalScrollIndicator={false}>
+        {/* 1. Tarjeta */}
+        <CampoFormulario etiqueta="Ingrese tarjeta">
+          <SelectorCampo onPress={() => setModalVisible(true)}>
+            <Text className="text-slate-900 text-sm font-inter-medium">
+              {tarjetaSeleccionada
+                ? `${tarjetaSeleccionada.banco} - ${tarjetaSeleccionada.nombre}`
+                : 'Selecciona una tarjeta'}
             </Text>
-          </TouchableOpacity>
-        </ScrollView>
+          </SelectorCampo>
+        </CampoFormulario>
 
-        {/* Modal Selección de Tarjetas Registradas */}
-        <Modal visible={modalVisible} animationType="slide" transparent>
-          <View className="flex-1 bg-black/50 justify-end">
-            <View className="bg-slate-50 rounded-t-3xl max-h-[70%] p-6">
-              <View className="flex-row items-center justify-between pb-4 border-b border-slate-200">
-                <Text className="text-slate-800 text-lg font-inter-bold">Seleccionar Tarjeta</Text>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <Ionicons name="close" size={24} color="#0F172A" />
-                </TouchableOpacity>
+        {/* 2. Motivo */}
+        <CampoFormulario etiqueta="Ingrese motivo">
+          <TextInput
+            value={motivo}
+            onChangeText={setMotivo}
+            placeholder="Ejemplo: Compra ropa Ripley"
+            placeholderTextColor="#94A3B8"
+            className={estiloInput()}
+          />
+        </CampoFormulario>
+
+        {/* 3. Monto */}
+        <CampoFormulario etiqueta="Ingrese monto">
+          <TextInput
+            value={formatearMiles(monto)}
+            onChangeText={(txt) => setMonto(soloDigitos(txt))}
+            keyboardType="numeric"
+            placeholder="$30.000"
+            placeholderTextColor="#94A3B8"
+            className={estiloInput()}
+          />
+        </CampoFormulario>
+
+        {/* 4. Cantidad de cuotas */}
+        <CampoFormulario etiqueta="Ingrese cantidad cuotas" className="mb-8">
+          <TextInput
+            value={cuotas}
+            onChangeText={(txt) => setCuotas(soloDigitos(txt))}
+            keyboardType="numeric"
+            placeholder="Ingresar cantidad de cuotas (ej. 1)"
+            placeholderTextColor="#94A3B8"
+            className={estiloInput()}
+          />
+        </CampoFormulario>
+
+        {/* Botón Agregar */}
+        <TouchableOpacity
+          onPress={handleGuardar}
+          className="w-full h-12 bg-color-action rounded-2xl items-center justify-center mb-8 shadow-md"
+          activeOpacity={0.8}
+        >
+          <Text className="text-white text-base font-inter-bold">
+            Agregar Transacción
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Modal Selección de Tarjetas Registradas */}
+      <ModalSeleccion
+        visible={modalVisible}
+        titulo="Seleccionar Tarjeta"
+        onCerrar={() => setModalVisible(false)}
+      >
+        {tarjetas.map((t) => (
+          <FilaOpcion
+            key={t.id}
+            seleccionada={tarjetaId === t.id}
+            onPress={() => {
+              setTarjetaId(t.id);
+              setModalVisible(false);
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View className="w-4 h-4 rounded-full" style={{ backgroundColor: t.colorHex }} />
+              <View>
+                <Text className="text-slate-900 text-base font-inter-medium">{t.banco}</Text>
+                <Text className="text-slate-500 text-xs">Actual: {t.monto}</Text>
               </View>
-
-              <ScrollView className="mt-4" showsVerticalScrollIndicator={false}>
-                {tarjetas.map((t) => (
-                  <TouchableOpacity
-                    key={t.id}
-                    onPress={() => {
-                      setTarjetaSeleccionada(t);
-                      setModalVisible(false);
-                    }}
-                    className="h-16 px-4 mb-2 bg-white rounded-2xl border border-slate-100 flex-row items-center justify-between shadow-sm"
-                  >
-                    <View className="flex-row items-center gap-3">
-                      <View
-                        className="w-4 h-4 rounded-full"
-                        style={{ backgroundColor: t.colorHex }}
-                      />
-                      <View>
-                        <Text className="text-slate-900 text-base font-inter-medium">
-                          {t.banco}
-                        </Text>
-                        <Text className="text-slate-500 text-xs">
-                          Actual: {t.monto}
-                        </Text>
-                      </View>
-                    </View>
-                    {tarjetaSeleccionada?.id === t.id ? (
-                      <Ionicons name="checkmark-circle" size={22} color="#10B981" />
-                    ) : (
-                      <Ionicons name="chevron-forward" size={18} color="#CBD5E1" />
-                    )}
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
             </View>
-          </View>
-        </Modal>
-      </View>
-    </View>
+          </FilaOpcion>
+        ))}
+      </ModalSeleccion>
+    </PantallaFormulario>
   );
 }

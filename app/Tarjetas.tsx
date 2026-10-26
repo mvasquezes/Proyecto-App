@@ -1,11 +1,12 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import { ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import EncabezadoPantalla from '../components/EncabezadoPantalla';
 import BottomNavigation from '../components/MenuNavegacion';
 import TarjetaMini from '../components/TarjetaMini';
+import { RUTAS } from '../constants/rutas';
 import { useApp } from '../context/AppContext';
 
 export default function TarjetasScreen() {
@@ -16,13 +17,7 @@ export default function TarjetasScreen() {
   return (
     <View className="flex-1 bg-bg-color" style={{ paddingTop: insets.top }}>
       {/* Encabezado con retorno a Inicio */}
-      <View className="px-6 pt-6 pb-4 flex-row items-center justify-between">
-        <TouchableOpacity onPress={() => router.replace('/')} className="w-8">
-          <Ionicons name="chevron-back" size={24} color="#1E293B" />
-        </TouchableOpacity>
-        <Text className="text-slate-800 text-lg font-inter-bold">Tarjetas</Text>
-        <View className="w-8" />
-      </View>
+      <EncabezadoPantalla titulo="Tarjetas" onVolver={() => router.replace(RUTAS.inicio)} />
 
       {/* Listado dinámico de tarjetas */}
       <ScrollView className="flex-1 px-6 pt-2" showsVerticalScrollIndicator={false}>
@@ -41,7 +36,7 @@ export default function TarjetasScreen() {
             <TouchableOpacity
               key={t.id}
               activeOpacity={0.88}
-              onPress={() => router.push(`../detalle-tarjeta/${t.id}`)}
+              onPress={() => router.push(RUTAS.detalleTarjeta(t.id))}
             >
               <TarjetaMini item={t} />
             </TouchableOpacity>

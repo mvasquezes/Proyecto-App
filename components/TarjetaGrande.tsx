@@ -1,12 +1,13 @@
 import React from 'react';
 import { Text, View } from 'react-native';
+import { COLOR_TARJETA_DEFAULT } from '../constants/banks';
 import { TarjetaItem } from '../context/AppContext';
 
 export default function CardItem({ item }: { item: TarjetaItem }) {
   return (
-    <View 
+    <View
       className="w-full h-40 p-6 rounded-3xl justify-between overflow-hidden shadow-lg mb-4"
-      style={{ backgroundColor: item.colorHex || '#1E293B' }}
+      style={{ backgroundColor: item.colorHex || COLOR_TARJETA_DEFAULT }}
     >
       {/* Brillo circular superior de Figma */}
       <View className="w-28 h-28 -left-8 -top-8 absolute bg-white/10 rounded-full" />
@@ -17,7 +18,6 @@ export default function CardItem({ item }: { item: TarjetaItem }) {
           {item.banco || "Nombre Banco"}
         </Text>
       </View>
-
 
       {/* Monto y Vencimiento */}
       <View className="gap-1">
