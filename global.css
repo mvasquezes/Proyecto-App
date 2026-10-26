@@ -1,4 +1,7 @@
+/* estilos base de tailwind */
 @tailwind base;
+/* clases de componentes de tailwind */
 @tailwind components;
+/* las clases utilitarias (flex-1, bg-white, etc) */
 @tailwind utilities;
 
